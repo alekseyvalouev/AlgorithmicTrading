@@ -5,9 +5,14 @@ import matplotlib.pyplot as plt
 import math
 
 class StockFetcher:
-    def __init__(self):
+    def __init__(self, ticker=None, start=None, end=None):
         self.ticker = None
         self.df = None
+
+        if (ticker != None):
+            self.fetch(ticker, start, end)
+            self.calculate_percent_change()
+            self.calc_rolling_volatility(50)
 
     def fetch(self, ticker, time_start, time_end):
         self.df = pdr.get_data_yahoo(ticker, 
@@ -43,11 +48,12 @@ class StockFetcher:
         plt.title('Volatility for %s' % self.ticker)
         plt.show()
 
+    def get_df(self):
+        return self.df
+
 
 
 if (__name__ == "__main__"):
-    myStockFetcher = StockFetcher()
-    myStockFetcher.fetch('AAPL', datetime.datetime(2006, 10, 1), datetime.datetime(2012, 1, 1))
-    myStockFetcher.calc_rolling_volatility(50)
+    myStockFetcher = StockFetcher('AAPL', datetime.datetime(2006, 10, 1), datetime.datetime(2012, 1, 1))
     myStockFetcher.show_rolling_volatility()
         
