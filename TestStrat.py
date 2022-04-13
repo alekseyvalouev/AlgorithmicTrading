@@ -1,3 +1,4 @@
+import yfinance as yf
 import pandas_datareader as pdr
 import datetime 
 import pandas as pd
@@ -15,9 +16,7 @@ class StockFetcher:
             self.calc_rolling_volatility(50)
 
     def fetch(self, ticker, time_start, time_end):
-        self.df = pdr.get_data_yahoo(ticker, 
-                          start=time_start, 
-                          end=time_end)
+        self.df = yf.download(ticker, time_start, time_end)
         self.ticker = ticker
 
     def format_csv(self):
@@ -27,8 +26,7 @@ class StockFetcher:
         self.df = pd.read_csv('data/%s' % filename)
 
     def plot_variable(self, variable):
-        self.df[variable].plot(grid=True)
-        plt.show()
+        self.df[variable].plot(grid=True, label=variable)
 
     def calculate_percent_change(self):
         self.df['Shifted'] = self.df['Adj Close'].shift(-1)
@@ -48,12 +46,31 @@ class StockFetcher:
         plt.title('Volatility for %s' % self.ticker)
         plt.show()
 
+    def apply_MA(self):
+        self.df = MA_Strategy(40, 100).modify_dataframe(self.df)
+
     def get_df(self):
         return self.df
+
+class MA_Strategy:
+    def __init__(self, p1, p2):
+        self.p1 = p1
+        self.p2 = p2
+
+    def modify_dataframe(self, df):
+        df['MA %s' % str(self.p1)] = df['Adj Close'].rolling(self.p1).mean()
+        df['MA %s' % str(self.p2)] = df['Adj Close'].rolling(self.p2).mean()
+        return df
 
 
 
 if (__name__ == "__main__"):
-    myStockFetcher = StockFetcher('AAPL', datetime.datetime(2006, 10, 1), datetime.datetime(2012, 1, 1))
-    myStockFetcher.show_rolling_volatility()
+    myStockFetcher = StockFetcher('AAPL', '2012-10-1', '2022-1-1')
+    myStockFetcher.calculate_percent_change()
+    myStockFetcher.plot_variable('Adj Close')
+    myStockFetcher.apply_MA()
+    myStockFetcher.plot_variable('MA 40')
+    myStockFetcher.plot_variable('MA 100')
+    plt.show()
+    
         
