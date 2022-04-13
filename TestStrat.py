@@ -26,7 +26,7 @@ class StockFetcher:
         self.df = pd.read_csv('data/%s' % filename)
 
     def plot_variable(self, variable):
-        self.df[variable].plot(grid=True, label=variable)
+        self.df[variable].plot(grid=True, legend=True)
 
     def calculate_percent_change(self):
         self.df['Shifted'] = self.df['Adj Close'].shift(-1)
@@ -46,31 +46,35 @@ class StockFetcher:
         plt.title('Volatility for %s' % self.ticker)
         plt.show()
 
-    def apply_MA(self):
-        self.df = MA_Strategy(40, 100).modify_dataframe(self.df)
+    def apply_MA(self, periods):
+        self.df = MA_Strategy(periods).modify_dataframe(self.df)
+
+    def plot_MA(self, periods):
+        for period in periods:
+            self.plot_variable('MA %s' % str(period))
 
     def get_df(self):
         return self.df
 
 class MA_Strategy:
-    def __init__(self, p1, p2):
-        self.p1 = p1
-        self.p2 = p2
+    def __init__(self, periods):
+        self.periods = periods
 
     def modify_dataframe(self, df):
-        df['MA %s' % str(self.p1)] = df['Adj Close'].rolling(self.p1).mean()
-        df['MA %s' % str(self.p2)] = df['Adj Close'].rolling(self.p2).mean()
+        for period in self.periods:
+            df['MA %s' % str(period)] = df['Adj Close'].rolling(period).mean()
         return df
 
+class EMA_Strategy:
+    pass
 
 
 if (__name__ == "__main__"):
     myStockFetcher = StockFetcher('AAPL', '2012-10-1', '2022-1-1')
     myStockFetcher.calculate_percent_change()
     myStockFetcher.plot_variable('Adj Close')
-    myStockFetcher.apply_MA()
-    myStockFetcher.plot_variable('MA 40')
-    myStockFetcher.plot_variable('MA 100')
+    myStockFetcher.apply_MA([10, 40, 100])
+    myStockFetcher.plot_MA([10, 40, 100])
     plt.show()
     
         
