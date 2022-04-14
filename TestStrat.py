@@ -1,6 +1,6 @@
 import yfinance as yf
 import pandas_datareader as pdr
-import datetime 
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import math
@@ -53,6 +53,23 @@ class StockFetcher:
         for period in periods:
             self.plot_variable('MA %s' % str(period))
 
+    def MA_Signals(self, p1, p2):
+        self.signals = pd.DataFrame(index=self.df.index)
+        self.signals['MA %i' % p1] = self.df['MA %i' % p1]
+        self.signals['MA %i' % p2] = self.df['MA %i' % p2]
+        self.signals['signal'] = 0.0
+        self.signals['signal'][p1:] = np.where(self.signals['MA %i' % p1][p1:] > self.signals['MA %i' % p2][p1:], 1.0, 0.0)  
+        self.signals['positions'] = self.signals['signal'].diff()
+
+    def plot_MA_signals(self, p1, p2):
+        plt.plot(self.signals.loc[self.signals.positions == 1.0].index, 
+                self.signals['MA %i' % p1][self.signals.positions == 1.0],
+                '^', markersize=10, color='m')
+                
+        plt.plot(self.signals.loc[self.signals.positions == -1.0].index, 
+                self.signals['MA %i' % p2][self.signals.positions == -1.0],
+                'v', markersize=10, color='k')
+
     def get_df(self):
         return self.df
 
@@ -65,16 +82,14 @@ class MA_Strategy:
             df['MA %s' % str(period)] = df['Adj Close'].rolling(period).mean()
         return df
 
-class EMA_Strategy:
-    pass
-
-
 if (__name__ == "__main__"):
-    myStockFetcher = StockFetcher('AAPL', '2012-10-1', '2022-1-1')
+    myStockFetcher = StockFetcher('AAPL', '2020-9-1', '2022-1-1')
     myStockFetcher.calculate_percent_change()
     myStockFetcher.plot_variable('Adj Close')
     myStockFetcher.apply_MA([10, 40, 100])
     myStockFetcher.plot_MA([10, 40, 100])
+    myStockFetcher.MA_Signals(10, 40)
+    myStockFetcher.plot_MA_signals(10, 40)
     plt.show()
     
         
