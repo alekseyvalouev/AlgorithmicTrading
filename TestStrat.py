@@ -9,6 +9,7 @@ class StockFetcher:
     def __init__(self, ticker=None, start=None, end=None):
         self.ticker = None
         self.df = None
+        self.figure, self.axis = plt.subplots(2, 2)
 
         if (ticker != None):
             self.fetch(ticker, start, end)
@@ -18,6 +19,8 @@ class StockFetcher:
     def fetch(self, ticker, time_start, time_end):
         self.df = yf.download(ticker, time_start, time_end)
         self.ticker = ticker
+        self.index = yf.download('^IXIC', time_start, time_end)
+        self.axis[1, 1].plot(self.index['Adj Close'])
 
     def format_csv(self):
         self.df.to_csv('data/%s_%s_%s.csv' % (self.ticker, str(self.time_start), str(self.time_end)))
@@ -26,7 +29,7 @@ class StockFetcher:
         self.df = pd.read_csv('data/%s' % filename)
 
     def plot_variable(self, variable):
-        self.df[variable].plot(grid=True, legend=True)
+        self.df[variable].plot(grid=True, legend=True, ax=self.axis[1, 0])
 
     def calculate_percent_change(self):
         self.df['Shifted'] = self.df['Adj Close'].shift(-1)
@@ -35,7 +38,6 @@ class StockFetcher:
     def show_returns(self):
         self.df['Pct. Change'].hist(bins=50)
         plt.title('Returns for %s' % self.ticker)
-        plt.show()
 
     def calc_rolling_volatility(self, window):
         self.calculate_percent_change()
@@ -44,7 +46,6 @@ class StockFetcher:
     def show_rolling_volatility(self):
         self.df['Rolling Volatility'].plot()
         plt.title('Volatility for %s' % self.ticker)
-        plt.show()
 
     def apply_MA(self, periods):
         self.df = MA_Strategy(periods).modify_dataframe(self.df)
@@ -82,7 +83,7 @@ class StockFetcher:
         # create temporary running first point array
         self.signals['filled_p1'] = self.signals['p1_numerical'].replace(to_replace=0, method='ffill')
         # create target prices
-        self.signals['target'] = np.where(self.signals['p2_numerical'] > 0, self.signals['filled_p1'] + 0.618*(self.signals['filled_p1']-self.signals['p2_numerical']), 0)
+        self.signals['target'] = np.where(self.signals['p2_numerical'] > 0, self.signals['filled_p1'] + 1.618*(self.signals['filled_p1']-self.signals['p2_numerical']), 0)
         self.signals['target'] = self.signals['target'].replace(to_replace=0, method='ffill')
         # now create dummy variable to track when close price is > target price
         self.signals['positions_sell'] = np.where(self.signals['target'] < self.df['Adj Close'], -1.0, 0.0)
@@ -94,22 +95,24 @@ class StockFetcher:
         self.signals['signal'] = np.where(self.signals['positions_buy'] > 0, 1.0, self.signals['signal'])
 
     def plot_fibonacci_extensions(self):
-        plt.plot(self.signals.loc[self.signals['positions_buy'] > 0].index, 
+        self.axis[1, 0].plot(self.signals.loc[self.signals['positions_buy'] > 0].index, 
                 self.df['Adj Close'][self.signals['positions_buy'] > 0],
                 '^', markersize=10, color='g')
 
-        plt.plot(self.signals.loc[self.signals['positions_sell'] < 0].index, 
+        self.axis[1, 0].plot(self.signals.loc[self.signals['positions_sell'] < 0].index, 
                 self.df['Adj Close'][self.signals['positions_sell'] < 0],
                 'v', markersize=10, color='r')
 
-        plt.plot(self.signals['target'], '--')
+        self.axis[1, 0].plot(self.signals['target'], '--')
 
     def back_test(self):
         initial_capital= float(100000.0)
 
         positions = pd.DataFrame(index=self.signals.index).fillna(0.0)
 
-        positions['AAPL'] = 100*self.signals['signal'].cumsum()   
+        positions[self.ticker] = 100*self.signals['signal'].cumsum()
+
+        self.end_holdings = positions[self.ticker][-1]   
         
         self.portfolio = positions.multiply(self.df['Adj Close'], axis=0)
 
@@ -124,7 +127,10 @@ class StockFetcher:
         self.portfolio['returns'] = self.portfolio['total'].pct_change()
 
     def plot_total(self):
-        self.portfolio['total'].plot(lw=2.)
+        self.portfolio['total'].plot(lw=2., ax=self.axis[0, 0], grid=True)
+
+    def plot_holding(self):
+        self.axis[0, 1].plot(self.end_holdings*self.df['Adj Close'])
 
     def get_df(self):
         return self.df
@@ -138,20 +144,17 @@ class MA_Strategy:
             df['MA %s' % str(period)] = df['Adj Close'].rolling(period).mean()
         return df
 
-class Fibonacci_Calculator:
-    def __init__(self):
-        pass
-
 if (__name__ == "__main__"):
-    myStockFetcher = StockFetcher('USO', '2019-1-1', '2022-1-1')
+    myStockFetcher = StockFetcher('AAPL', '2019-1-1', '2022-4-1')
     myStockFetcher.calculate_percent_change()
     myStockFetcher.apply_MA([10, 40, 100])
     myStockFetcher.MA_Signals(10, 40, 100)
-    #myStockFetcher.plot_MA([10, 40, 100])
-    #myStockFetcher.plot_variable('Adj Close')
-    #myStockFetcher.plot_fibonacci_extensions()
+    myStockFetcher.plot_MA([10, 40, 100])
+    myStockFetcher.plot_variable('Adj Close')
+    myStockFetcher.plot_fibonacci_extensions()
     myStockFetcher.back_test()
     myStockFetcher.plot_total()
+    myStockFetcher.plot_holding()
     plt.show()
     
         
